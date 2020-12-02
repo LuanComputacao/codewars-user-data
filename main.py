@@ -1,15 +1,9 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool
-# windows, actions, and settings.
-import json
 import csv
+import json
 from os import makedirs, path
-from environs import Env
-
 
 import requests
+from environs import Env
 
 
 def main():
@@ -19,8 +13,9 @@ def main():
     usernames = get_usernames(env('USERNAMES_CSV'))
     api_key = 'zuz793X919sYiwHxNyoB'
 
-    get_user_data(api_key, base_url, usernames)
-    get_completed_challenges(api_key, base_url, usernames)
+    if env.bool('DOWNLOAD_DATA'):
+        get_user_data(api_key, base_url, usernames)
+        get_completed_challenges(api_key, base_url, usernames)
 
     process_users_completed_challanges(usernames, env('LANGUAGE'))
 
@@ -47,7 +42,6 @@ def get_user_data(api_key, base_url, usernames):
 
 def get_completed_challenges(api_key, base_url, usernames):
     for username in usernames:
-        print(username)
         response = requests.get(
             f'{base_url}/users/{username}/code-challenges/completed',
             headers={
@@ -62,12 +56,15 @@ def get_completed_challenges(api_key, base_url, usernames):
 
 def process_users_completed_challanges(usernames, language):
     challenges_ids_set = set()
+    ranking = []
+    clean_codewars_file()
+
     for username in usernames:
         with open(f'output/{username}/completed_challenges.json') as f:
             challenges_data = json.loads(f.read())
             challenges_data = [challenge for challenge in challenges_data['data']
                                if language in challenge['completedLanguages']]
-            print(challenges_data)
+            ranking.append((username, len(challenges_data)))
             for challenge in challenges_data:
                 if challenge['id'] not in challenges_ids_set:
                     challenges_ids_set.add(challenge['id'])
@@ -76,6 +73,24 @@ def process_users_completed_challanges(usernames, language):
                         challenge['slug'],
                         challenge['name'],
                         language)
+
+    store_ranking(ranking)
+
+def store_ranking(ranking):
+    ranking.sort(key=lambda x: x[1])
+    ranking.reverse()
+    fieldnames = ['username', 'katas']
+
+    with open('output/ranking.csv', 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for line in ranking:
+           writer.writerow(dict(zip(fieldnames, line)))
+
+def clean_codewars_file():
+    with open('output/codewars.csv', 'w') as f:
+        f.write('id,slug,name,link')
 
 
 def store_codewar(id, slug, name, language):
@@ -92,6 +107,5 @@ def store_codewar(id, slug, name, language):
         writer.writerow(dict(zip(fieldnames, data)))
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     main()
