@@ -1,0 +1,7 @@
+venv
+usernames_full.csv
+output
+**/*.swp
+.idea/
+.env
+usernames.csv
