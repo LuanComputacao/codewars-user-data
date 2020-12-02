@@ -20,11 +20,9 @@ def main():
     api_key = 'zuz793X919sYiwHxNyoB'
 
     get_user_data(api_key, base_url, usernames)
+    get_completed_challenges(api_key, base_url, usernames)
 
-    get_completed_challenges(
-        api_key,
-        base_url,
-        usernames)
+    process_users_completed_challanges(usernames, env('LANGUAGE'))
 
 
 def get_usernames(usernames_file):
@@ -44,7 +42,7 @@ def get_user_data(api_key, base_url, usernames):
         if not path.isdir(user_dir):
             makedirs(user_dir)
         with open(f'{user_dir}/userdata.json', 'w') as f:
-            f.write(json.dumps(student_data))
+            f.write(json.dumps(student_data, indent=2))
 
 
 def get_completed_challenges(api_key, base_url, usernames):
@@ -59,7 +57,39 @@ def get_completed_challenges(api_key, base_url, usernames):
         if not path.isdir(user_dir):
             makedirs(user_dir)
         with open(f'{user_dir}/completed_challenges.json', 'w') as f:
-            f.write(json.dumps(user_data))
+            f.write(json.dumps(user_data, indent=2))
+
+
+def process_users_completed_challanges(usernames, language):
+    challenges_ids_set = set()
+    for username in usernames:
+        with open(f'output/{username}/completed_challenges.json') as f:
+            challenges_data = json.loads(f.read())
+            challenges_data = [challenge for challenge in challenges_data['data']
+                               if language in challenge['completedLanguages']]
+            print(challenges_data)
+            for challenge in challenges_data:
+                if challenge['id'] not in challenges_ids_set:
+                    challenges_ids_set.add(challenge['id'])
+                    store_codewar(
+                        challenge['id'],
+                        challenge['slug'],
+                        challenge['name'],
+                        language)
+
+
+def store_codewar(id, slug, name, language):
+    fieldnames = ['id', 'slug', 'name', 'link']
+    base_url = 'https://www.codewars.com/kata'
+    data = [
+        id,
+        slug,
+        name,
+        f'{base_url}/{slug}/{language}'
+    ]
+    with open('output/codewars.csv', 'a+') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writerow(dict(zip(fieldnames, data)))
 
 
 # Press the green button in the gutter to run the script.
